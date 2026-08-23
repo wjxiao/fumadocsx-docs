@@ -1,0 +1,2230 @@
+# Android SDK API 参考 (/docs/android-sdk/api-reference)
+
+
+
+# API 参考 [#api-参考]
+
+## IVCSdk [#ivcsdk]
+
+SDK 主入口类。
+
+### 初始化 [#初始化]
+
+```kotlin
+IVCSdk.init(context: Context, config: SDKConfig)
+```
+
+### 登录 [#登录]
+
+```kotlin
+IVCSdk.auth().login(phone: String): Result<UserSession>
+```
+
+## VehicleManager [#vehiclemanager]
+
+### 获取车辆列表 [#获取车辆列表]
+
+```kotlin
+IVCSdk.vehicle().getVehicles(): Flow<List<Vehicle>>
+```
+
+### 远程控制 [#远程控制]
+
+```kotlin
+IVCSdk.control().lock(vehicleId: String): Flow<ControlResult>
+IVCSdk.control().unlock(vehicleId: String): Flow<ControlResult>
+```
+
+
+# 安卓 SDK 总览 (/docs/android-sdk)
+
+
+
+
+
+# 安卓 SDK 总览 [#安卓-sdk-总览]
+
+<Callout type="info">
+  最低 SDK 版本: API 26 (Android 8.0)\
+  编译 SDK 版本: API 35 (Android 15)\
+  包名: `com.ivc.sdk`
+</Callout>
+
+## 集成方式 [#集成方式]
+
+### Gradle 依赖 [#gradle-依赖]
+
+```kotlin
+dependencies {
+    implementation("com.ivc.sdk:ivc-sdk:2.1.0")
+}
+```
+
+### 权限配置 [#权限配置]
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+```
+
+## SDK 架构 [#sdk-架构]
+
+<Mermaid
+  chart="flowchart LR
+    SDK[IVC SDK] --> Auth[认证模块]
+    SDK --> Vehicle[车辆模块]
+    SDK --> Control[控制模块]
+    SDK --> Nav[导航模块]
+    Auth --> API[云端 API]
+    Vehicle --> API
+    Control --> MQ[MQTT]
+    Nav --> API"
+/>
+
+
+# Android SDK 快速开始 (/docs/android-sdk/quickstart)
+
+
+
+
+
+# 快速开始 [#快速开始]
+
+## 初始化 SDK [#初始化-sdk]
+
+<Steps>
+  <Step title="添加依赖">
+    在 `build.gradle.kts` 中添加 SDK 依赖。
+  </Step>
+
+  <Step title="初始化">
+    ```kotlin
+    class MyApplication : Application() {
+        override fun onCreate() {
+            super.onCreate()
+            IVCSdk.init(
+                context = this,
+                config = SDKConfig(
+                    clientId = "your_client_id",
+                    environment = Environment.STAGING
+                )
+            )
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="登录">
+    ```kotlin
+    lifecycleScope.launch {
+        val result = IVCSdk.auth().login(phone = "13800138000")
+        when (result) {
+            is Result.Success -> {
+                // 登录成功
+            }
+            is Result.Error -> {
+                // 处理错误
+            }
+        }
+    }
+    ```
+  </Step>
+</Steps>
+
+
+# 数据流设计 (/docs/architecture/data-flow)
+
+
+
+
+
+# 数据流设计 [#数据流设计]
+
+## 核心数据流 [#核心数据流]
+
+### 车辆状态上报 [#车辆状态上报]
+
+<Mermaid
+  chart="flowchart LR
+    VC[车机 CAN Bus] -->|采集| DAU[数据采集单元]
+    DAU -->|MQTT| MQ[消息队列]
+    MQ -->|消费| SP[流处理]
+    SP -->|写入| TS[(时序数据库)]
+    TS -->|查询| API[REST API]
+    API -->|WebSocket| APP[移动 App]"
+/>
+
+## 数据结构 [#数据结构]
+
+<Callout type="info">
+  所有时间戳统一使用 UTC 时间，毫秒精度。
+</Callout>
+
+### VehicleStatus [#vehiclestatus]
+
+| 字段             | 类型       | 说明            |
+| -------------- | -------- | ------------- |
+| vehicle\_id    | string   | 车辆 VIN 码      |
+| timestamp      | int64    | 数据采集时间戳       |
+| battery\_level | float    | 电量百分比 (0-100) |
+| speed          | float    | 速度 (km/h)     |
+| location       | GeoPoint | GPS 坐标        |
+| engine\_status | enum     | 引擎状态          |
+
+
+# 架构总览 (/docs/architecture)
+
+
+
+
+
+# 架构总览 [#架构总览]
+
+<Callout type="info">
+  本文档描述智能车联系统的整体架构设计。
+</Callout>
+
+## 系统分层 [#系统分层]
+
+<Mermaid
+  chart="graph TD
+    A[移动端 App] --> B[API Gateway]
+    B --> C[微服务集群]
+    C --> D[(数据库)]
+    C --> E[消息队列]
+    E --> F[车机端]
+    B --> G[第三方服务]"
+/>
+
+## 技术架构 [#技术架构]
+
+<Tabs>
+  <Tab value="app" title="移动端">
+    * 架构: MVVM + Clean Architecture
+    * 网络: Retrofit / URLSession
+    * 状态管理: StateFlow / Combine
+    * 本地存储: Room / CoreData
+  </Tab>
+
+  <Tab value="backend" title="后端">
+    * 框架: Spring Boot / Go
+    * API 协议: REST + gRPC
+    * 数据库: PostgreSQL + Redis
+    * 消息队列: Kafka
+  </Tab>
+
+  <Tab value="vehicle" title="车机端">
+    * 系统: Android Automotive / Linux
+    * 通信: MQTT + CAN Bus
+    * OTA: AB 分区升级
+  </Tab>
+</Tabs>
+
+## 项目结构 [#项目结构]
+
+<Files>
+  <Folder name="src">
+    <Folder name="app">
+      <File name="presentation" />
+
+      <File name="domain" />
+
+      <File name="data" />
+    </Folder>
+
+    <Folder name="shared">
+      <File name="network" />
+
+      <File name="storage" />
+    </Folder>
+  </Folder>
+</Files>
+
+
+# 系统概述 (/docs/architecture/system-overview)
+
+
+
+# 系统概述 [#系统概述]
+
+## 系统边界 [#系统边界]
+
+智能车联系统包含以下核心子系统：
+
+1. **云端平台** — 核心业务逻辑与数据存储
+2. **移动 App** — 用户交互界面
+3. **车机系统** — 车辆数据采集与控制执行
+4. **管理后台** — 运维与数据分析
+
+## 通信架构 [#通信架构]
+
+<Mermaid
+  chart="sequenceDiagram
+    participant App as 移动 App
+    participant GW as API Gateway
+    participant MS as 微服务
+    participant MQ as 消息队列
+    participant VC as 车机
+
+    App->>GW: HTTPS/WSS 请求
+    GW->>MS: 路由转发
+    MS->>MQ: 推送指令
+    MQ->>VC: MQTT 推送
+    VC-->>MQ: 执行结果
+    MQ-->>MS: 消息回调
+    MS-->>GW: 响应
+    GW-->>App: 请求结果"
+/>
+
+## 部署架构 [#部署架构]
+
+| 组件          | 部署方式       | 规格       |
+| ----------- | ---------- | -------- |
+| API Gateway | K8s (多副本)  | 4C8G x 3 |
+| 微服务         | K8s (弹性伸缩) | 2C4G x 5 |
+| PostgreSQL  | 云 RDS      | 主从架构     |
+| Redis       | 云 Redis    | 集群模式     |
+| Kafka       | 云 Kafka    | 3 Broker |
+
+
+# 认证机制 (/docs/cloud-api/authentication)
+
+
+
+
+
+# 认证机制 [#认证机制]
+
+## OAuth 2.0 流程 [#oauth-20-流程]
+
+<Mermaid
+  chart="sequenceDiagram
+    participant App as 移动 App
+    participant Auth as 认证服务
+    participant API as API Gateway
+
+    App->>Auth: 1. 授权请求 (client_id + scope)
+    Auth->>Auth: 2. 用户认证
+    Auth-->>App: 3. 授权码
+    App->>Auth: 4. 换取 Token
+    Auth-->>App: 5. Access Token + Refresh Token
+    App->>API: 6. API 请求 (Bearer Token)
+    API->>Auth: 7. Token 验证
+    Auth-->>API: 8. 用户信息
+    API-->>App: 9. 响应"
+/>
+
+## Token 格式 [#token-格式]
+
+使用 JWT (JSON Web Token)，包含以下声明：
+
+```json
+{
+  "sub": "user_123456",
+  "aud": "ivc-system",
+  "exp": 1719000000,
+  "iat": 1718913600,
+  "scope": "vehicle:read vehicle:write"
+}
+```
+
+<Tabs>
+  <Tab value="header" title="请求头">
+    ```
+    Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+    ```
+  </Tab>
+
+  <Tab value="error" title="错误响应">
+    ```json
+    {
+      "error": "UNAUTHORIZED",
+      "message": "Token 已过期",
+      "status": 401
+    }
+    ```
+  </Tab>
+</Tabs>
+
+
+# API 端点 (/docs/cloud-api/endpoints)
+
+
+
+# API 端点 [#api-端点]
+
+## 车辆状态 [#车辆状态]
+
+### 获取车辆列表 [#获取车辆列表]
+
+`GET /vehicles`
+
+**请求参数：**
+
+| 参数     | 类型     | 必填 | 说明                   |
+| ------ | ------ | -- | -------------------- |
+| page   | int    | 否  | 页码，默认 1              |
+| limit  | int    | 否  | 每页条数，默认 20           |
+| status | string | 否  | 筛选状态: online/offline |
+
+**响应示例：**
+
+```json
+{
+  "data": [
+    {
+      "id": "v_001",
+      "vin": "LSVAU2A38N2100001",
+      "plate": "粤B·88888",
+      "status": "online",
+      "last_updated": "2026-07-26T10:00:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 20
+}
+```
+
+### 获取车辆状态 [#获取车辆状态]
+
+`GET /vehicles/{id}/status`
+
+**响应示例：**
+
+```json
+{
+  "vehicle_id": "v_001",
+  "timestamp": "2026-07-26T10:00:00Z",
+  "battery": {
+    "level": 85.5,
+    "charging": true
+  },
+  "location": {
+    "latitude": 22.5431,
+    "longitude": 114.0579
+  },
+  "speed": 0,
+  "engine": "off"
+}
+```
+
+
+# 云端 API 总览 (/docs/cloud-api)
+
+
+
+
+
+# 云端 API 总览 [#云端-api-总览]
+
+<Callout type="info">
+  所有 API 均需通过 Bearer Token 认证。
+  基础 URL: `https://api.ivc-system.com/v1`
+</Callout>
+
+## API 列表 [#api-列表]
+
+### 车辆管理 [#车辆管理]
+
+| 方法     | 路径                      | 说明     |
+| ------ | ----------------------- | ------ |
+| GET    | `/vehicles`             | 获取车辆列表 |
+| POST   | `/vehicles/bind`        | 绑定车辆   |
+| DELETE | `/vehicles/{id}`        | 解绑车辆   |
+| GET    | `/vehicles/{id}/status` | 获取车辆状态 |
+
+### 远程控制 [#远程控制]
+
+| 方法   | 路径                       | 说明   |
+| ---- | ------------------------ | ---- |
+| POST | `/vehicles/{id}/lock`    | 远程锁车 |
+| POST | `/vehicles/{id}/unlock`  | 远程解锁 |
+| POST | `/vehicles/{id}/climate` | 空调控制 |
+
+## 错误码 [#错误码]
+
+| 状态码 | 错误码           | 说明    |
+| --- | ------------- | ----- |
+| 401 | UNAUTHORIZED  | 认证失败  |
+| 403 | FORBIDDEN     | 无权限   |
+| 404 | NOT\_FOUND    | 资源不存在 |
+| 429 | RATE\_LIMITED | 请求限流  |
+
+
+# 功能规格说明 (/docs/frs)
+
+
+
+# 功能规格说明 [#功能规格说明]
+
+## 功能列表 [#功能列表]
+
+| 模块   | 功能点        | 优先级 |
+| ---- | ---------- | --- |
+| 用户管理 | 注册、登录、权限管理 | P0  |
+| 车辆管理 | 绑定、解绑、状态查询 | P0  |
+| 远程控制 | 锁车、空调、充电   | P1  |
+| 导航服务 | 路线规划、实时路况  | P1  |
+| 数据统计 | 里程、能耗、驾驶行为 | P2  |
+
+
+# 接口定义 (/docs/frs/interface-def)
+
+
+
+
+
+# 接口定义 [#接口定义]
+
+## 内部接口 [#内部接口]
+
+### App → 云端 [#app--云端]
+
+<Tabs>
+  <Tab value="rest" title="REST API">
+    协议: HTTPS\
+    格式: JSON\
+    认证: Bearer Token\
+    基础 URL: `https://api.ivc-system.com/v1`
+  </Tab>
+
+  <Tab value="ws" title="WebSocket">
+    协议: WSS\
+    用途: 实时状态推送\
+    心跳: 30 秒\
+    重连: 指数退避
+  </Tab>
+</Tabs>
+
+### 云端 → 车机 [#云端--车机]
+
+| 协议   | 用途   | QoS   |
+| ---- | ---- | ----- |
+| MQTT | 指令下发 | QoS 1 |
+| MQTT | 状态上报 | QoS 0 |
+
+## 接口规范 [#接口规范]
+
+### 通用响应格式 [#通用响应格式]
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {},
+  "request_id": "req_xxxxx"
+}
+```
+
+### 分页参数 [#分页参数]
+
+| 参数    | 类型     | 默认值 | 说明   |
+| ----- | ------ | --- | ---- |
+| page  | int    | 1   | 页码   |
+| limit | int    | 20  | 每页条数 |
+| sort  | string | -   | 排序字段 |
+| order | string | asc | 排序方向 |
+
+
+# 模块列表 (/docs/frs/module-list)
+
+
+
+
+
+# 模块列表 [#模块列表]
+
+## 核心模块 [#核心模块]
+
+### 用户管理模块 [#用户管理模块]
+
+| 功能   | 输入           | 输出           |
+| ---- | ------------ | ------------ |
+| 注册   | 手机号、验证码      | 用户 ID        |
+| 登录   | 手机号+密码 / 验证码 | Access Token |
+| 权限管理 | 用户 ID、角色     | 权限配置         |
+
+### 车辆管理模块 [#车辆管理模块]
+
+| 功能   | 输入          | 输出     |
+| ---- | ----------- | ------ |
+| 绑定车辆 | VIN 码、车主授权码 | 绑定记录   |
+| 解绑车辆 | 车辆 ID       | 解绑确认   |
+| 状态查询 | 车辆 ID       | 实时状态数据 |
+
+### 远程控制模块 [#远程控制模块]
+
+* 锁车/解锁
+* 空调开关及温度设置
+* 充电管理（开始/停止/预约）
+* 车窗控制
+* 寻车功能
+
+
+# 鸿蒙 SDK API 参考 (/docs/harmony-sdk/api-reference)
+
+
+
+# API 参考 [#api-参考]
+
+## IVCSDK [#ivcsdk]
+
+```typescript
+interface IVCSDK {
+  static init(config: SDKConfig): void;
+  static auth(): AuthManager;
+  static vehicle(): VehicleManager;
+  static control(): ControlManager;
+}
+```
+
+## AuthManager [#authmanager]
+
+```typescript
+interface AuthManager {
+  login(phone: string): Promise<Result<UserSession>>;
+  logout(): Promise<void>;
+}
+```
+
+## VehicleManager [#vehiclemanager]
+
+```typescript
+interface VehicleManager {
+  getVehicles(): Observable<Vehicle[]>;
+  bind(vin: string): Promise<Vehicle>;
+}
+```
+
+## ControlManager [#controlmanager]
+
+```typescript
+interface ControlManager {
+  lock(vehicleId: string): Observable<ControlResult>;
+  unlock(vehicleId: string): Observable<ControlResult>;
+}
+```
+
+
+# 鸿蒙 SDK 总览 (/docs/harmony-sdk)
+
+
+
+
+
+# 鸿蒙 SDK 总览 [#鸿蒙-sdk-总览]
+
+<Callout type="info">
+  最低 SDK 版本: API 9 (HarmonyOS 3.0)\
+  开发语言: ArkTS\
+  包名: `@ivc/sdk`
+</Callout>
+
+## 集成方式 [#集成方式]
+
+### ohpm 安装 [#ohpm-安装]
+
+```bash
+ohpm install @ivc/sdk
+```
+
+## 初始化 [#初始化]
+
+```typescript
+import { IVCSDK, Environment } from '@ivc/sdk';
+
+IVCSDK.init({
+  clientId: 'your_client_id',
+  environment: Environment.STAGING,
+});
+```
+
+
+# 鸿蒙 SDK 快速开始 (/docs/harmony-sdk/quickstart)
+
+
+
+# 快速开始 [#快速开始]
+
+## 1. 安装 [#1-安装]
+
+```bash
+ohpm install @ivc/sdk
+```
+
+## 2. 初始化 [#2-初始化]
+
+```typescript
+// entry/src/main/ets/entryability/EntryAbility.ets
+import { IVCSDK, Environment } from '@ivc/sdk';
+
+export default class EntryAbility extends UIAbility {
+  onCreate() {
+    IVCSDK.init({
+      clientId: 'your_client_id',
+      environment: Environment.STAGING,
+    });
+  }
+}
+```
+
+## 3. 登录 [#3-登录]
+
+```typescript
+import { IVCSDK } from '@ivc/sdk';
+
+async function login() {
+  const result = await IVCSDK.auth().login('13800138000');
+  if (result.isSuccess) {
+    console.info('登录成功');
+  }
+}
+```
+
+
+# iOS SDK API 参考 (/docs/ios-sdk/api-reference)
+
+
+
+# API 参考 [#api-参考]
+
+## IVCSDK [#ivcsdk]
+
+```swift
+class IVCSDK {
+    static func configure(clientId: String, environment: Environment)
+    static func auth() -> AuthManager
+    static func vehicle() -> VehicleManager
+    static func control() -> ControlManager
+}
+```
+
+## AuthManager [#authmanager]
+
+```swift
+class AuthManager {
+    func login(phone: String) async throws -> Result<UserSession, IVCError>
+    func logout() async throws
+    func refreshToken() async throws
+}
+```
+
+## VehicleManager [#vehiclemanager]
+
+```swift
+class VehicleManager {
+    func getVehicles() -> AsyncThrowingStream<[Vehicle], Error>
+    func bind(vin: String) async throws -> Vehicle
+    func unbind(vehicleId: String) async throws
+}
+```
+
+## ControlManager [#controlmanager]
+
+```swift
+class ControlManager {
+    func lock(vehicleId: String) -> AsyncThrowingStream<ControlResult, Error>
+    func unlock(vehicleId: String) -> AsyncThrowingStream<ControlResult, Error>
+    func setClimate(vehicleId: String, temperature: Double) -> AsyncThrowingStream<ControlResult, Error>
+}
+```
+
+
+# iOS SDK 总览 (/docs/ios-sdk)
+
+
+
+
+
+# iOS SDK 总览 [#ios-sdk-总览]
+
+<Callout type="info">
+  最低部署目标: iOS 15.0\
+  Swift 版本: 5.9+\
+  包名: `IVCSDK`
+</Callout>
+
+## 集成方式 [#集成方式]
+
+### Swift Package Manager [#swift-package-manager]
+
+```
+https://github.com/ivc-system/ios-sdk.git
+```
+
+### CocoaPods [#cocoapods]
+
+```ruby
+pod 'IVCSDK', '~> 2.1.0'
+```
+
+## 初始化 [#初始化]
+
+```swift
+import IVCSDK
+
+// AppDelegate.swift
+IVCSDK.configure(
+    clientId: "your_client_id",
+    environment: .staging
+)
+```
+
+
+# iOS SDK 快速开始 (/docs/ios-sdk/quickstart)
+
+
+
+# 快速开始 [#快速开始]
+
+## 1. 安装 SDK [#1-安装-sdk]
+
+通过 Swift Package Manager 或 CocoaPods 安装。
+
+## 2. 初始化 [#2-初始化]
+
+```swift
+// AppDelegate.swift
+import IVCSDK
+
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(_: UIApplication, didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        IVCSDK.configure(clientId: "your_client_id", environment: .staging)
+        return true
+    }
+}
+```
+
+## 3. 登录 [#3-登录]
+
+```swift
+Task {
+    let result = try await IVCSDK.auth().login(phone: "13800138000")
+    switch result {
+    case .success(let session):
+        print("登录成功: \(session.userId)")
+    case .failure(let error):
+        print("登录失败: \(error.localizedDescription)")
+    }
+}
+```
+
+
+# 功能需求 (/docs/prd/functional-reqs)
+
+
+
+
+
+# 功能需求 [#功能需求]
+
+## F-001: 用户认证 [#f-001-用户认证]
+
+<Callout type="info">
+  优先级: P0 | 状态: 已确认
+</Callout>
+
+**功能描述：** 用户通过手机号或邮箱注册/登录系统。
+
+**前置条件：** 用户拥有有效的手机号或邮箱地址。
+
+**后置条件：** 用户获得有效的访问令牌。
+
+**正常流程：**
+
+1. 用户输入手机号/邮箱
+2. 系统发送验证码
+3. 用户输入验证码
+4. 系统验证并返回令牌
+
+**异常流程：**
+
+* 验证码错误超过 5 次，锁定 30 分钟
+* 网络异常时提示重试
+
+## F-002: 车辆绑定 [#f-002-车辆绑定]
+
+<Callout type="warn">
+  优先级: P0 | 状态: 开发中
+</Callout>
+
+**功能描述：** 用户通过 VIN 码或扫码绑定车辆。
+
+**业务规则：**
+
+* 一个用户最多绑定 5 辆车
+* 一辆车最多同时被 3 个用户绑定
+* 绑定需要车主授权
+
+## F-003: 数据同步 [#f-003-数据同步]
+
+**功能描述：** 车辆数据与云端实时同步。
+
+**技术规格：**
+
+| 参数   | 值                    |
+| ---- | -------------------- |
+| 同步协议 | MQTT over WebSocket  |
+| 数据格式 | Protocol Buffers     |
+| 同步频率 | 5 秒 (状态) / 1 分钟 (位置) |
+| 离线缓存 | 7 天                  |
+
+
+# 产品需求总览 (/docs/prd)
+
+
+
+
+
+# 产品需求总览 [#产品需求总览]
+
+本文档定义了智能车联系统的产品需求，涵盖核心功能、用户故事和验收标准。
+
+<Callout type="info">
+  本文档适用于产品经理、开发工程师和测试人员。
+</Callout>
+
+## 核心功能模块 [#核心功能模块]
+
+<Cards>
+  <Card title="车辆状态监控" description="实时获取车辆位置、速度、电量等状态信息" />
+
+  <Card title="远程控制" description="远程锁车、空调控制、充电管理等" />
+
+  <Card title="导航服务" description="实时路况、路线规划、POI 搜索" />
+
+  <Card title="安全告警" description="碰撞预警、偏离预警、异常告警" />
+</Cards>
+
+## 需求优先级 [#需求优先级]
+
+| 优先级 | 功能       | 预计工时 |
+| --- | -------- | ---- |
+| P0  | 车辆状态实时上报 | 2 周  |
+| P1  | 远程锁车/解锁  | 1 周  |
+| P2  | 历史轨迹查询   | 2 周  |
+| P3  | 智能充电推荐   | 3 周  |
+
+## 用户场景 [#用户场景]
+
+<Accordions>
+  <Accordion title="场景一：车主远程查看车辆状态">
+    1. 用户打开 App → 2. 首页展示车辆状态卡片 → 3. 实时更新电量、里程、位置信息 → 4. 异常时推送通知
+  </Accordion>
+
+  <Accordion title="场景二：远程控制车辆">
+    1. 用户点击"锁车"按钮 → 2. 验证身份 → 3. 发送指令到车机 → 4. 车机执行并反馈结果 → 5. App 显示执行结果
+  </Accordion>
+</Accordions>
+
+## 开发流程 [#开发流程]
+
+<Steps>
+  <Step title="需求评审">
+    产品经理组织需求评审会，确认需求范围
+  </Step>
+
+  <Step title="技术方案">
+    架构师输出技术方案设计文档
+  </Step>
+
+  <Step title="开发实现">
+    开发团队按迭代计划实现功能
+  </Step>
+
+  <Step title="测试验收">
+    QA 团队执行测试用例并验收
+  </Step>
+</Steps>
+
+
+# 用户故事 (/docs/prd/user-stories)
+
+
+
+
+
+# 用户故事 [#用户故事]
+
+## 用户角色 [#用户角色]
+
+| 角色  | 描述                  |
+| --- | ------------------- |
+| 车主  | 拥有车辆并可以通过 App 管理的用户 |
+| 乘客  | 通过共享授权使用车辆服务的用户     |
+| 管理员 | 管理车辆权限和服务的后台用户      |
+
+## 用户故事列表 [#用户故事列表]
+
+<Accordions>
+  <Accordion title="US-001: 实时查看车辆状态">
+    **作为** 车主\
+    **我希望** 能够实时查看车辆的电量、里程和位置\
+    **以便** 随时了解车辆状况
+
+    **验收标准：**
+
+    * 首页展示车辆状态卡片
+    * 数据刷新频率 ≤ 5 秒
+    * 离线车辆显示最后在线时间
+  </Accordion>
+
+  <Accordion title="US-002: 远程锁车">
+    **作为** 车主\
+    **我希望** 能够通过 App 远程锁车/解锁\
+    **以便** 忘记锁车时无需返回车辆
+
+    **验收标准：**
+
+    * 执行结果在 10 秒内反馈
+    * 失败时提供原因
+    * 有防误触确认机制
+  </Accordion>
+</Accordions>
+
+
+# 微信 SDK API 参考 (/docs/wechat-sdk/api-reference)
+
+
+
+# API 参考 [#api-参考]
+
+## IVCSDK [#ivcsdk]
+
+```typescript
+interface IVCSDK {
+  static init(config: WechatSDKConfig): void;
+  static auth(): AuthManager;
+  static vehicle(): VehicleManager;
+}
+```
+
+## AuthManager [#authmanager]
+
+```typescript
+interface AuthManager {
+  loginWithPhone(encryptedData: string, iv: string): Promise<UserSession>;
+  checkSession(): Promise<boolean>;
+}
+```
+
+## VehicleManager [#vehiclemanager]
+
+```typescript
+interface VehicleManager {
+  getList(): Promise<Vehicle[]>;
+  getDetail(vehicleId: string): Promise<VehicleDetail>;
+  bind(vin: string, ownerCode: string): Promise<void>;
+}
+```
+
+
+# 微信 SDK 总览 (/docs/wechat-sdk)
+
+
+
+
+
+# 微信 SDK 总览 [#微信-sdk-总览]
+
+<Callout type="info">
+  基础库版本: 2.30.0+\
+  开发语言: JavaScript / TypeScript\
+  npm 包名: `ivc-weapp-sdk`
+</Callout>
+
+## 集成方式 [#集成方式]
+
+### npm 安装 [#npm-安装]
+
+```bash
+npm install ivc-weapp-sdk
+```
+
+### 小程序配置 [#小程序配置]
+
+```json
+// app.json
+{
+  "plugins": {
+    "ivc-sdk": {
+      "version": "2.1.0",
+      "provider": "wx123456789"
+    }
+  }
+}
+```
+
+## 初始化 [#初始化]
+
+```javascript
+import { IVCSDK } from 'ivc-weapp-sdk';
+
+// app.js
+App({
+  onLaunch() {
+    IVCSDK.init({
+      clientId: 'your_client_id',
+      env: 'staging',
+    });
+  },
+});
+```
+
+
+# 微信 SDK 快速开始 (/docs/wechat-sdk/quickstart)
+
+
+
+# 快速开始 [#快速开始]
+
+## 1. 安装 [#1-安装]
+
+```bash
+npm install ivc-weapp-sdk
+```
+
+## 2. 初始化 [#2-初始化]
+
+```javascript
+// app.js
+import { IVCSDK } from 'ivc-weapp-sdk';
+
+App({
+  onLaunch() {
+    IVCSDK.init({ clientId: 'your_client_id', env: 'staging' });
+  },
+});
+```
+
+## 3. 获取车辆状态 [#3-获取车辆状态]
+
+```javascript
+import { IVCSDK } from 'ivc-weapp-sdk';
+
+Page({
+  async onLoad() {
+    const vehicles = await IVCSDK.vehicle().getList();
+    this.setData({ vehicles });
+  },
+});
+```
+
+
+# Android SDK API Reference (/en/docs/android-sdk/api-reference)
+
+
+
+# API Reference [#api-reference]
+
+## IVCSdk [#ivcsdk]
+
+Main entry class for the SDK.
+
+### Initialization [#initialization]
+
+```kotlin
+IVCSdk.init(context: Context, config: SDKConfig)
+```
+
+### Login [#login]
+
+```kotlin
+IVCSdk.auth().login(phone: String): Result<UserSession>
+```
+
+## VehicleManager [#vehiclemanager]
+
+### Get Vehicle List [#get-vehicle-list]
+
+```kotlin
+IVCSdk.vehicle().getVehicles(): Flow<List<Vehicle>>
+```
+
+### Remote Control [#remote-control]
+
+```kotlin
+IVCSdk.control().lock(vehicleId: String): Flow<ControlResult>
+IVCSdk.control().unlock(vehicleId: String): Flow<ControlResult>
+```
+
+
+# Android SDK Overview (/en/docs/android-sdk)
+
+
+
+
+
+# Android SDK Overview [#android-sdk-overview]
+
+<Callout type="info">
+  Minimum SDK: API 26 (Android 8.0)\
+  Compile SDK: API 35 (Android 15)\
+  Package: `com.ivc.sdk`
+</Callout>
+
+## Integration [#integration]
+
+### Gradle Dependency [#gradle-dependency]
+
+```kotlin
+dependencies {
+    implementation("com.ivc.sdk:ivc-sdk:2.1.0")
+}
+```
+
+### Permissions [#permissions]
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+```
+
+## SDK Architecture [#sdk-architecture]
+
+<Mermaid
+  chart="flowchart LR
+    SDK[IVC SDK] --> Auth[Auth Module]
+    SDK --> Vehicle[Vehicle Module]
+    SDK --> Control[Control Module]
+    SDK --> Nav[Navigation Module]
+    Auth --> API[Cloud API]
+    Vehicle --> API
+    Control --> MQ[MQTT]
+    Nav --> API"
+/>
+
+
+# Android SDK Quickstart (/en/docs/android-sdk/quickstart)
+
+
+
+
+
+# Quickstart [#quickstart]
+
+## Initialize the SDK [#initialize-the-sdk]
+
+<Steps>
+  <Step title="Add Dependency">
+    Add the SDK dependency to `build.gradle.kts`.
+  </Step>
+
+  <Step title="Initialize">
+    ```kotlin
+    class MyApplication : Application() {
+        override fun onCreate() {
+            super.onCreate()
+            IVCSdk.init(
+                context = this,
+                config = SDKConfig(
+                    clientId = "your_client_id",
+                    environment = Environment.STAGING
+                )
+            )
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Login">
+    ```kotlin
+    lifecycleScope.launch {
+        val result = IVCSdk.auth().login(phone = "13800138000")
+        when (result) {
+            is Result.Success -> {
+                // Login successful
+            }
+            is Result.Error -> {
+                // Handle error
+            }
+        }
+    }
+    ```
+  </Step>
+</Steps>
+
+
+# Data Flow Design (/en/docs/architecture/data-flow)
+
+
+
+
+
+# Data Flow Design [#data-flow-design]
+
+## Core Data Flow [#core-data-flow]
+
+### Vehicle Status Reporting [#vehicle-status-reporting]
+
+<Mermaid
+  chart="flowchart LR
+    VC[Vehicle CAN Bus] -->|Collect| DAU[Data Acquisition Unit]
+    DAU -->|MQTT| MQ[Message Queue]
+    MQ -->|Consume| SP[Stream Processing]
+    SP -->|Write| TS[(Time Series Database)]
+    TS -->|Query| API[REST API]
+    API -->|WebSocket| APP[Mobile App]"
+/>
+
+## Data Structures [#data-structures]
+
+<Callout type="info">
+  All timestamps use UTC time with millisecond precision.
+</Callout>
+
+### VehicleStatus [#vehiclestatus]
+
+| Field          | Type     | Description                |
+| -------------- | -------- | -------------------------- |
+| vehicle\_id    | string   | Vehicle VIN                |
+| timestamp      | int64    | Data collection timestamp  |
+| battery\_level | float    | Battery percentage (0-100) |
+| speed          | float    | Speed (km/h)               |
+| location       | GeoPoint | GPS coordinates            |
+| engine\_status | enum     | Engine status              |
+
+
+# Architecture Overview (/en/docs/architecture)
+
+
+
+
+
+# Architecture Overview [#architecture-overview]
+
+<Callout type="info">
+  This document describes the overall architecture design of the Intelligent Connected Vehicle System.
+</Callout>
+
+## System Layers [#system-layers]
+
+<Mermaid
+  chart="graph TD
+    A[Mobile App] --> B[API Gateway]
+    B --> C[Microservice Cluster]
+    C --> D[(Database)]
+    C --> E[Message Queue]
+    E --> F[Vehicle System]
+    B --> G[Third-party Services]"
+/>
+
+## Technology Stack [#technology-stack]
+
+<Tabs>
+  <Tab value="app" title="Mobile">
+    * Architecture: MVVM + Clean Architecture
+    * Network: Retrofit / URLSession
+    * State Management: StateFlow / Combine
+    * Local Storage: Room / CoreData
+  </Tab>
+
+  <Tab value="backend" title="Backend">
+    * Framework: Spring Boot / Go
+    * API Protocol: REST + gRPC
+    * Database: PostgreSQL + Redis
+    * Message Queue: Kafka
+  </Tab>
+
+  <Tab value="vehicle" title="Vehicle System">
+    * OS: Android Automotive / Linux
+    * Communication: MQTT + CAN Bus
+    * OTA: A/B Partition Update
+  </Tab>
+</Tabs>
+
+## Project Structure [#project-structure]
+
+<Files>
+  <Folder name="src">
+    <Folder name="app">
+      <File name="presentation" />
+
+      <File name="domain" />
+
+      <File name="data" />
+    </Folder>
+
+    <Folder name="shared">
+      <File name="network" />
+
+      <File name="storage" />
+    </Folder>
+  </Folder>
+</Files>
+
+
+# System Overview (/en/docs/architecture/system-overview)
+
+
+
+# System Overview [#system-overview]
+
+## System Boundaries [#system-boundaries]
+
+The Intelligent Connected Vehicle System consists of the following core subsystems:
+
+1. **Cloud Platform** — Core business logic and data storage
+2. **Mobile App** — User interaction interface
+3. **Vehicle System** — Vehicle data collection and control execution
+4. **Admin Console** — Operations and data analytics
+
+## Communication Architecture [#communication-architecture]
+
+<Mermaid
+  chart="sequenceDiagram
+    participant App as Mobile App
+    participant GW as API Gateway
+    participant MS as Microservices
+    participant MQ as Message Queue
+    participant VC as Vehicle
+
+    App->>GW: HTTPS/WSS Request
+    GW->>MS: Route Forwarding
+    MS->>MQ: Push Command
+    MQ->>VC: MQTT Push
+    VC-->>MQ: Execution Result
+    MQ-->>MS: Message Callback
+    MS-->>GW: Response
+    GW-->>App: Request Result"
+/>
+
+## Deployment Architecture [#deployment-architecture]
+
+| Component     | Deployment          | Specification |
+| ------------- | ------------------- | ------------- |
+| API Gateway   | K8s (Multi-replica) | 4C8G x 3      |
+| Microservices | K8s (Auto-scaling)  | 2C4G x 5      |
+| PostgreSQL    | Cloud RDS           | Master-Slave  |
+| Redis         | Cloud Redis         | Cluster Mode  |
+| Kafka         | Cloud Kafka         | 3 Brokers     |
+
+
+# Authentication (/en/docs/cloud-api/authentication)
+
+
+
+
+
+# Authentication [#authentication]
+
+## OAuth 2.0 Flow [#oauth-20-flow]
+
+<Mermaid
+  chart="sequenceDiagram
+    participant App as Mobile App
+    participant Auth as Auth Service
+    participant API as API Gateway
+
+    App->>Auth: 1. Authorization Request (client_id + scope)
+    Auth->>Auth: 2. User Authentication
+    Auth-->>App: 3. Authorization Code
+    App->>Auth: 4. Exchange Token
+    Auth-->>App: 5. Access Token + Refresh Token
+    App->>API: 6. API Request (Bearer Token)
+    API->>Auth: 7. Token Validation
+    Auth-->>API: 8. User Info
+    API-->>App: 9. Response"
+/>
+
+## Token Format [#token-format]
+
+Uses JWT (JSON Web Token) with the following claims:
+
+```json
+{
+  "sub": "user_123456",
+  "aud": "ivc-system",
+  "exp": 1719000000,
+  "iat": 1718913600,
+  "scope": "vehicle:read vehicle:write"
+}
+```
+
+<Tabs>
+  <Tab value="header" title="Request Header">
+    ```
+    Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+    ```
+  </Tab>
+
+  <Tab value="error" title="Error Response">
+    ```json
+    {
+      "error": "UNAUTHORIZED",
+      "message": "Token has expired",
+      "status": 401
+    }
+    ```
+  </Tab>
+</Tabs>
+
+
+# API Endpoints (/en/docs/cloud-api/endpoints)
+
+
+
+# API Endpoints [#api-endpoints]
+
+## Vehicle Status [#vehicle-status]
+
+### Get Vehicle List [#get-vehicle-list]
+
+`GET /vehicles`
+
+**Request Parameters:**
+
+| Parameter | Type   | Required | Description                      |
+| --------- | ------ | -------- | -------------------------------- |
+| page      | int    | No       | Page number, default 1           |
+| limit     | int    | No       | Items per page, default 20       |
+| status    | string | No       | Filter by status: online/offline |
+
+**Response Example:**
+
+```json
+{
+  "data": [
+    {
+      "id": "v_001",
+      "vin": "LSVAU2A38N2100001",
+      "plate": "YueB·88888",
+      "status": "online",
+      "last_updated": "2026-07-26T10:00:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 20
+}
+```
+
+### Get Vehicle Status [#get-vehicle-status]
+
+`GET /vehicles/{id}/status`
+
+**Response Example:**
+
+```json
+{
+  "vehicle_id": "v_001",
+  "timestamp": "2026-07-26T10:00:00Z",
+  "battery": {
+    "level": 85.5,
+    "charging": true
+  },
+  "location": {
+    "latitude": 22.5431,
+    "longitude": 114.0579
+  },
+  "speed": 0,
+  "engine": "off"
+}
+```
+
+
+# Cloud API Overview (/en/docs/cloud-api)
+
+
+
+
+
+# Cloud API Overview [#cloud-api-overview]
+
+<Callout type="info">
+  All APIs require Bearer Token authentication.
+  Base URL: `https://api.ivc-system.com/v1`
+</Callout>
+
+## API List [#api-list]
+
+### Vehicle Management [#vehicle-management]
+
+| Method | Path                    | Description        |
+| ------ | ----------------------- | ------------------ |
+| GET    | `/vehicles`             | Get vehicle list   |
+| POST   | `/vehicles/bind`        | Bind vehicle       |
+| DELETE | `/vehicles/{id}`        | Unbind vehicle     |
+| GET    | `/vehicles/{id}/status` | Get vehicle status |
+
+### Remote Control [#remote-control]
+
+| Method | Path                     | Description     |
+| ------ | ------------------------ | --------------- |
+| POST   | `/vehicles/{id}/lock`    | Remote lock     |
+| POST   | `/vehicles/{id}/unlock`  | Remote unlock   |
+| POST   | `/vehicles/{id}/climate` | Climate control |
+
+## Error Codes [#error-codes]
+
+| Status Code | Error Code    | Description           |
+| ----------- | ------------- | --------------------- |
+| 401         | UNAUTHORIZED  | Authentication failed |
+| 403         | FORBIDDEN     | No permission         |
+| 404         | NOT\_FOUND    | Resource not found    |
+| 429         | RATE\_LIMITED | Rate limit exceeded   |
+
+
+# Functional Specification (/en/docs/frs)
+
+
+
+# Functional Specification [#functional-specification]
+
+## Feature List [#feature-list]
+
+| Module              | Feature                                       | Priority |
+| ------------------- | --------------------------------------------- | -------- |
+| User Management     | Registration, Login, Permission Management    | P0       |
+| Vehicle Management  | Bind, Unbind, Status Query                    | P0       |
+| Remote Control      | Lock, Climate, Charging                       | P1       |
+| Navigation Services | Route Planning, Real-time Traffic             | P1       |
+| Data Analytics      | Mileage, Energy Consumption, Driving Behavior | P2       |
+
+
+# Interface Definition (/en/docs/frs/interface-def)
+
+
+
+
+
+# Interface Definition [#interface-definition]
+
+## Internal Interfaces [#internal-interfaces]
+
+### App → Cloud [#app--cloud]
+
+<Tabs>
+  <Tab value="rest" title="REST API">
+    Protocol: HTTPS\
+    Format: JSON\
+    Authentication: Bearer Token\
+    Base URL: `https://api.ivc-system.com/v1`
+  </Tab>
+
+  <Tab value="ws" title="WebSocket">
+    Protocol: WSS\
+    Purpose: Real-time status push\
+    Heartbeat: 30 seconds\
+    Reconnect: Exponential backoff
+  </Tab>
+</Tabs>
+
+### Cloud → Vehicle [#cloud--vehicle]
+
+| Protocol | Purpose          | QoS   |
+| -------- | ---------------- | ----- |
+| MQTT     | Command delivery | QoS 1 |
+| MQTT     | Status reporting | QoS 0 |
+
+## API Specifications [#api-specifications]
+
+### Common Response Format [#common-response-format]
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {},
+  "request_id": "req_xxxxx"
+}
+```
+
+### Pagination Parameters [#pagination-parameters]
+
+| Parameter | Type   | Default | Description    |
+| --------- | ------ | ------- | -------------- |
+| page      | int    | 1       | Page number    |
+| limit     | int    | 20      | Items per page |
+| sort      | string | -       | Sort field     |
+| order     | string | asc     | Sort direction |
+
+
+# Module List (/en/docs/frs/module-list)
+
+
+
+
+
+# Module List [#module-list]
+
+## Core Modules [#core-modules]
+
+### User Management Module [#user-management-module]
+
+| Function              | Input                                       | Output                   |
+| --------------------- | ------------------------------------------- | ------------------------ |
+| Registration          | Phone number, verification code             | User ID                  |
+| Login                 | Phone number + password / verification code | Access Token             |
+| Permission Management | User ID, role                               | Permission configuration |
+
+### Vehicle Management Module [#vehicle-management-module]
+
+| Function       | Input                         | Output                |
+| -------------- | ----------------------------- | --------------------- |
+| Bind Vehicle   | VIN, owner authorization code | Binding record        |
+| Unbind Vehicle | Vehicle ID                    | Unbind confirmation   |
+| Status Query   | Vehicle ID                    | Real-time status data |
+
+### Remote Control Module [#remote-control-module]
+
+* Lock / Unlock
+* Climate control on/off and temperature setting
+* Charging management (start / stop / schedule)
+* Window control
+* Find my car
+
+
+# Harmony SDK API Reference (/en/docs/harmony-sdk/api-reference)
+
+
+
+# API Reference [#api-reference]
+
+## IVCSDK [#ivcsdk]
+
+```typescript
+interface IVCSDK {
+  static init(config: SDKConfig): void;
+  static auth(): AuthManager;
+  static vehicle(): VehicleManager;
+  static control(): ControlManager;
+}
+```
+
+## AuthManager [#authmanager]
+
+```typescript
+interface AuthManager {
+  login(phone: string): Promise<Result<UserSession>>;
+  logout(): Promise<void>;
+}
+```
+
+## VehicleManager [#vehiclemanager]
+
+```typescript
+interface VehicleManager {
+  getVehicles(): Observable<Vehicle[]>;
+  bind(vin: string): Promise<Vehicle>;
+}
+```
+
+## ControlManager [#controlmanager]
+
+```typescript
+interface ControlManager {
+  lock(vehicleId: string): Observable<ControlResult>;
+  unlock(vehicleId: string): Observable<ControlResult>;
+}
+```
+
+
+# Harmony SDK Overview (/en/docs/harmony-sdk)
+
+
+
+
+
+# Harmony SDK Overview [#harmony-sdk-overview]
+
+<Callout type="info">
+  Minimum SDK Version: API 9 (HarmonyOS 3.0)\
+  Language: ArkTS\
+  Package: `@ivc/sdk`
+</Callout>
+
+## Integration [#integration]
+
+### ohpm Install [#ohpm-install]
+
+```bash
+ohpm install @ivc/sdk
+```
+
+## Initialization [#initialization]
+
+```typescript
+import { IVCSDK, Environment } from '@ivc/sdk';
+
+IVCSDK.init({
+  clientId: 'your_client_id',
+  environment: Environment.STAGING,
+});
+```
+
+
+# Harmony SDK Quickstart (/en/docs/harmony-sdk/quickstart)
+
+
+
+# Quickstart [#quickstart]
+
+## 1. Install [#1-install]
+
+```bash
+ohpm install @ivc/sdk
+```
+
+## 2. Initialize [#2-initialize]
+
+```typescript
+// entry/src/main/ets/entryability/EntryAbility.ets
+import { IVCSDK, Environment } from '@ivc/sdk';
+
+export default class EntryAbility extends UIAbility {
+  onCreate() {
+    IVCSDK.init({
+      clientId: 'your_client_id',
+      environment: Environment.STAGING,
+    });
+  }
+}
+```
+
+## 3. Login [#3-login]
+
+```typescript
+import { IVCSDK } from '@ivc/sdk';
+
+async function login() {
+  const result = await IVCSDK.auth().login('13800138000');
+  if (result.isSuccess) {
+    console.info('Login successful');
+  }
+}
+```
+
+
+# iOS SDK API Reference (/en/docs/ios-sdk/api-reference)
+
+
+
+# API Reference [#api-reference]
+
+## IVCSDK [#ivcsdk]
+
+```swift
+class IVCSDK {
+    static func configure(clientId: String, environment: Environment)
+    static func auth() -> AuthManager
+    static func vehicle() -> VehicleManager
+    static func control() -> ControlManager
+}
+```
+
+## AuthManager [#authmanager]
+
+```swift
+class AuthManager {
+    func login(phone: String) async throws -> Result<UserSession, IVCError>
+    func logout() async throws
+    func refreshToken() async throws
+}
+```
+
+## VehicleManager [#vehiclemanager]
+
+```swift
+class VehicleManager {
+    func getVehicles() -> AsyncThrowingStream<[Vehicle], Error>
+    func bind(vin: String) async throws -> Vehicle
+    func unbind(vehicleId: String) async throws
+}
+```
+
+## ControlManager [#controlmanager]
+
+```swift
+class ControlManager {
+    func lock(vehicleId: String) -> AsyncThrowingStream<ControlResult, Error>
+    func unlock(vehicleId: String) -> AsyncThrowingStream<ControlResult, Error>
+    func setClimate(vehicleId: String, temperature: Double) -> AsyncThrowingStream<ControlResult, Error>
+}
+```
+
+
+# iOS SDK Overview (/en/docs/ios-sdk)
+
+
+
+
+
+# iOS SDK Overview [#ios-sdk-overview]
+
+<Callout type="info">
+  Minimum Deployment Target: iOS 15.0\
+  Swift Version: 5.9+\
+  Package: `IVCSDK`
+</Callout>
+
+## Integration [#integration]
+
+### Swift Package Manager [#swift-package-manager]
+
+```
+https://github.com/ivc-system/ios-sdk.git
+```
+
+### CocoaPods [#cocoapods]
+
+```ruby
+pod 'IVCSDK', '~> 2.1.0'
+```
+
+## Initialization [#initialization]
+
+```swift
+import IVCSDK
+
+// AppDelegate.swift
+IVCSDK.configure(
+    clientId: "your_client_id",
+    environment: .staging
+)
+```
+
+
+# iOS SDK Quickstart (/en/docs/ios-sdk/quickstart)
+
+
+
+# Quickstart [#quickstart]
+
+## 1. Install the SDK [#1-install-the-sdk]
+
+Install via Swift Package Manager or CocoaPods.
+
+## 2. Initialize [#2-initialize]
+
+```swift
+// AppDelegate.swift
+import IVCSDK
+
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(_: UIApplication, didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        IVCSDK.configure(clientId: "your_client_id", environment: .staging)
+        return true
+    }
+}
+```
+
+## 3. Login [#3-login]
+
+```swift
+Task {
+    let result = try await IVCSDK.auth().login(phone: "13800138000")
+    switch result {
+    case .success(let session):
+        print("Login successful: \(session.userId)")
+    case .failure(let error):
+        print("Login failed: \(error.localizedDescription)")
+    }
+}
+```
+
+
+# Functional Requirements (/en/docs/prd/functional-reqs)
+
+
+
+
+
+# Functional Requirements [#functional-requirements]
+
+## F-001: User Authentication [#f-001-user-authentication]
+
+<Callout type="info">
+  Priority: P0 | Status: Confirmed
+</Callout>
+
+**Description:** Users register or log in to the system using a phone number or email.
+
+**Preconditions:** User has a valid phone number or email address.
+
+**Postconditions:** User obtains a valid access token.
+
+**Normal Flow:**
+
+1. User enters phone number / email
+2. System sends a verification code
+3. User enters the verification code
+4. System validates and returns a token
+
+**Exception Flow:**
+
+* Verification code error exceeds 5 attempts, lockout for 30 minutes
+* Network error prompts user to retry
+
+## F-002: Vehicle Binding [#f-002-vehicle-binding]
+
+<Callout type="warn">
+  Priority: P0 | Status: In Development
+</Callout>
+
+**Description:** Users bind a vehicle via VIN code or QR code scanning.
+
+**Business Rules:**
+
+* A user can bind up to 5 vehicles
+* A vehicle can be bound by up to 3 users simultaneously
+* Binding requires owner authorization
+
+## F-003: Data Synchronization [#f-003-data-synchronization]
+
+**Description:** Real-time data synchronization between vehicle and cloud.
+
+**Technical Specifications:**
+
+| Parameter      | Value                                    |
+| -------------- | ---------------------------------------- |
+| Sync Protocol  | MQTT over WebSocket                      |
+| Data Format    | Protocol Buffers                         |
+| Sync Frequency | 5 seconds (status) / 1 minute (location) |
+| Offline Cache  | 7 days                                   |
+
+
+# Product Requirements Overview (/en/docs/prd)
+
+
+
+
+
+# Product Requirements Overview [#product-requirements-overview]
+
+This document defines the product requirements for the Intelligent Connected Vehicle System, covering core features, user stories, and acceptance criteria.
+
+<Callout type="info">
+  This document is intended for product managers, development engineers, and QA testers.
+</Callout>
+
+## Core Feature Modules [#core-feature-modules]
+
+<Cards>
+  <Card title="Vehicle Status Monitoring" description="Real-time access to vehicle location, speed, battery level, and other status information" />
+
+  <Card title="Remote Control" description="Remote lock/unlock, climate control, charging management, etc." />
+
+  <Card title="Navigation Services" description="Real-time traffic, route planning, POI search" />
+
+  <Card title="Safety Alerts" description="Collision warning, lane departure warning, anomaly alerts" />
+</Cards>
+
+## Requirements Priority [#requirements-priority]
+
+| Priority | Feature                            | Estimated Effort |
+| -------- | ---------------------------------- | ---------------- |
+| P0       | Real-time vehicle status reporting | 2 weeks          |
+| P1       | Remote lock/unlock                 | 1 week           |
+| P2       | Historical trajectory query        | 2 weeks          |
+| P3       | Smart charging recommendation      | 3 weeks          |
+
+## User Scenarios [#user-scenarios]
+
+<Accordions>
+  <Accordion title="Scenario 1: Owner Remotely Checks Vehicle Status">
+    1. User opens App → 2. Home page displays vehicle status card → 3. Real-time updates for battery, mileage, location → 4. Push notification on anomaly
+  </Accordion>
+
+  <Accordion title="Scenario 2: Remote Vehicle Control">
+    1. User taps "Lock" button → 2. Identity verification → 3. Command sent to vehicle → 4. Vehicle executes and reports result → 5. App displays execution result
+  </Accordion>
+</Accordions>
+
+## Development Process [#development-process]
+
+<Steps>
+  <Step title="Requirements Review">
+    Product manager organizes a requirements review meeting to confirm the scope
+  </Step>
+
+  <Step title="Technical Proposal">
+    Architect delivers technical design document
+  </Step>
+
+  <Step title="Development & Implementation">
+    Development team implements features per iteration plan
+  </Step>
+
+  <Step title="Testing & Acceptance">
+    QA team executes test cases and verifies acceptance
+  </Step>
+</Steps>
+
+
+# User Stories (/en/docs/prd/user-stories)
+
+
+
+
+
+# User Stories [#user-stories]
+
+## User Roles [#user-roles]
+
+| Role      | Description                                                     |
+| --------- | --------------------------------------------------------------- |
+| Owner     | Vehicle owner who can manage the vehicle via the App            |
+| Passenger | User who accesses vehicle services through shared authorization |
+| Admin     | Backend user who manages vehicle permissions and services       |
+
+## User Stories [#user-stories-1]
+
+<Accordions>
+  <Accordion title="US-001: Real-time Vehicle Status">
+    **As** a vehicle owner\
+    **I want** to view the vehicle's battery level, mileage, and location in real time\
+    **So that** I can stay informed about the vehicle's condition
+
+    **Acceptance Criteria:**
+
+    * Vehicle status card displayed on home page
+    * Data refresh interval ≤ 5 seconds
+    * Offline vehicles show last online time
+  </Accordion>
+
+  <Accordion title="US-002: Remote Lock/Unlock">
+    **As** a vehicle owner\
+    **I want** to lock/unlock the vehicle remotely via the App\
+    **So that** I don't need to return to the vehicle if I forget to lock it
+
+    **Acceptance Criteria:**
+
+    * Execution result feedback within 10 seconds
+    * Failure reason provided on error
+    * Anti-misoperation confirmation mechanism in place
+  </Accordion>
+</Accordions>
+
+
+# WeChat SDK API Reference (/en/docs/wechat-sdk/api-reference)
+
+
+
+# API Reference [#api-reference]
+
+## IVCSDK [#ivcsdk]
+
+```typescript
+interface IVCSDK {
+  static init(config: WechatSDKConfig): void;
+  static auth(): AuthManager;
+  static vehicle(): VehicleManager;
+}
+```
+
+## AuthManager [#authmanager]
+
+```typescript
+interface AuthManager {
+  loginWithPhone(encryptedData: string, iv: string): Promise<UserSession>;
+  checkSession(): Promise<boolean>;
+}
+```
+
+## VehicleManager [#vehiclemanager]
+
+```typescript
+interface VehicleManager {
+  getList(): Promise<Vehicle[]>;
+  getDetail(vehicleId: string): Promise<VehicleDetail>;
+  bind(vin: string, ownerCode: string): Promise<void>;
+}
+```
+
+
+# WeChat SDK Overview (/en/docs/wechat-sdk)
+
+
+
+
+
+# WeChat SDK Overview [#wechat-sdk-overview]
+
+<Callout type="info">
+  Base Library Version: 2.30.0+\
+  Language: JavaScript / TypeScript\
+  npm Package: `ivc-weapp-sdk`
+</Callout>
+
+## Integration [#integration]
+
+### npm Install [#npm-install]
+
+```bash
+npm install ivc-weapp-sdk
+```
+
+### Mini Program Configuration [#mini-program-configuration]
+
+```json
+// app.json
+{
+  "plugins": {
+    "ivc-sdk": {
+      "version": "2.1.0",
+      "provider": "wx123456789"
+    }
+  }
+}
+```
+
+## Initialization [#initialization]
+
+```javascript
+import { IVCSDK } from 'ivc-weapp-sdk';
+
+// app.js
+App({
+  onLaunch() {
+    IVCSDK.init({
+      clientId: 'your_client_id',
+      env: 'staging',
+    });
+  },
+});
+```
+
+
+# WeChat SDK Quickstart (/en/docs/wechat-sdk/quickstart)
+
+
+
+# Quickstart [#quickstart]
+
+## 1. Install [#1-install]
+
+```bash
+npm install ivc-weapp-sdk
+```
+
+## 2. Initialize [#2-initialize]
+
+```javascript
+// app.js
+import { IVCSDK } from 'ivc-weapp-sdk';
+
+App({
+  onLaunch() {
+    IVCSDK.init({ clientId: 'your_client_id', env: 'staging' });
+  },
+});
+```
+
+## 3. Get Vehicle Status [#3-get-vehicle-status]
+
+```javascript
+import { IVCSDK } from 'ivc-weapp-sdk';
+
+Page({
+  async onLoad() {
+    const vehicles = await IVCSDK.vehicle().getList();
+    this.setData({ vehicles });
+  },
+});
+```
