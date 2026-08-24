@@ -813,134 +813,6 @@ Task {
 ```
 
 
-# 微信 SDK API 参考 (/docs/wechat-sdk/api-reference)
-
-
-
-# API 参考 [#api-参考]
-
-## IVCSDK [#ivcsdk]
-
-```typescript
-interface IVCSDK {
-  static init(config: WechatSDKConfig): void;
-  static auth(): AuthManager;
-  static vehicle(): VehicleManager;
-}
-```
-
-## AuthManager [#authmanager]
-
-```typescript
-interface AuthManager {
-  loginWithPhone(encryptedData: string, iv: string): Promise<UserSession>;
-  checkSession(): Promise<boolean>;
-}
-```
-
-## VehicleManager [#vehiclemanager]
-
-```typescript
-interface VehicleManager {
-  getList(): Promise<Vehicle[]>;
-  getDetail(vehicleId: string): Promise<VehicleDetail>;
-  bind(vin: string, ownerCode: string): Promise<void>;
-}
-```
-
-
-# 微信 SDK 总览 (/docs/wechat-sdk)
-
-
-
-
-
-# 微信 SDK 总览 [#微信-sdk-总览]
-
-<Callout type="info">
-  基础库版本: 2.30.0+\
-  开发语言: JavaScript / TypeScript\
-  npm 包名: `ivc-weapp-sdk`
-</Callout>
-
-## 集成方式 [#集成方式]
-
-### npm 安装 [#npm-安装]
-
-```bash
-npm install ivc-weapp-sdk
-```
-
-### 小程序配置 [#小程序配置]
-
-```json
-// app.json
-{
-  "plugins": {
-    "ivc-sdk": {
-      "version": "2.1.0",
-      "provider": "wx123456789"
-    }
-  }
-}
-```
-
-## 初始化 [#初始化]
-
-```javascript
-import { IVCSDK } from 'ivc-weapp-sdk';
-
-// app.js
-App({
-  onLaunch() {
-    IVCSDK.init({
-      clientId: 'your_client_id',
-      env: 'staging',
-    });
-  },
-});
-```
-
-
-# 微信 SDK 快速开始 (/docs/wechat-sdk/quickstart)
-
-
-
-# 快速开始 [#快速开始]
-
-## 1. 安装 [#1-安装]
-
-```bash
-npm install ivc-weapp-sdk
-```
-
-## 2. 初始化 [#2-初始化]
-
-```javascript
-// app.js
-import { IVCSDK } from 'ivc-weapp-sdk';
-
-App({
-  onLaunch() {
-    IVCSDK.init({ clientId: 'your_client_id', env: 'staging' });
-  },
-});
-```
-
-## 3. 获取车辆状态 [#3-获取车辆状态]
-
-```javascript
-import { IVCSDK } from 'ivc-weapp-sdk';
-
-Page({
-  async onLoad() {
-    const vehicles = await IVCSDK.vehicle().getList();
-    this.setData({ vehicles });
-  },
-});
-```
-
-
 # 功能需求 (/docs/prd/functional-reqs)
 
 
@@ -1112,6 +984,134 @@ Page({
     * 有防误触确认机制
   </Accordion>
 </Accordions>
+
+
+# 微信 SDK API 参考 (/docs/wechat-sdk/api-reference)
+
+
+
+# API 参考 [#api-参考]
+
+## IVCSDK [#ivcsdk]
+
+```typescript
+interface IVCSDK {
+  static init(config: WechatSDKConfig): void;
+  static auth(): AuthManager;
+  static vehicle(): VehicleManager;
+}
+```
+
+## AuthManager [#authmanager]
+
+```typescript
+interface AuthManager {
+  loginWithPhone(encryptedData: string, iv: string): Promise<UserSession>;
+  checkSession(): Promise<boolean>;
+}
+```
+
+## VehicleManager [#vehiclemanager]
+
+```typescript
+interface VehicleManager {
+  getList(): Promise<Vehicle[]>;
+  getDetail(vehicleId: string): Promise<VehicleDetail>;
+  bind(vin: string, ownerCode: string): Promise<void>;
+}
+```
+
+
+# 微信 SDK 总览 (/docs/wechat-sdk)
+
+
+
+
+
+# 微信 SDK 总览 [#微信-sdk-总览]
+
+<Callout type="info">
+  基础库版本: 2.30.0+\
+  开发语言: JavaScript / TypeScript\
+  npm 包名: `ivc-weapp-sdk`
+</Callout>
+
+## 集成方式 [#集成方式]
+
+### npm 安装 [#npm-安装]
+
+```bash
+npm install ivc-weapp-sdk
+```
+
+### 小程序配置 [#小程序配置]
+
+```json
+// app.json
+{
+  "plugins": {
+    "ivc-sdk": {
+      "version": "2.1.0",
+      "provider": "wx123456789"
+    }
+  }
+}
+```
+
+## 初始化 [#初始化]
+
+```javascript
+import { IVCSDK } from 'ivc-weapp-sdk';
+
+// app.js
+App({
+  onLaunch() {
+    IVCSDK.init({
+      clientId: 'your_client_id',
+      env: 'staging',
+    });
+  },
+});
+```
+
+
+# 微信 SDK 快速开始 (/docs/wechat-sdk/quickstart)
+
+
+
+# 快速开始 [#快速开始]
+
+## 1. 安装 [#1-安装]
+
+```bash
+npm install ivc-weapp-sdk
+```
+
+## 2. 初始化 [#2-初始化]
+
+```javascript
+// app.js
+import { IVCSDK } from 'ivc-weapp-sdk';
+
+App({
+  onLaunch() {
+    IVCSDK.init({ clientId: 'your_client_id', env: 'staging' });
+  },
+});
+```
+
+## 3. 获取车辆状态 [#3-获取车辆状态]
+
+```javascript
+import { IVCSDK } from 'ivc-weapp-sdk';
+
+Page({
+  async onLoad() {
+    const vehicles = await IVCSDK.vehicle().getList();
+    this.setData({ vehicles });
+  },
+});
+```
 
 
 # Android SDK API Reference (/en/docs/android-sdk/api-reference)
@@ -1929,134 +1929,6 @@ Task {
 ```
 
 
-# WeChat SDK API Reference (/en/docs/wechat-sdk/api-reference)
-
-
-
-# API Reference [#api-reference]
-
-## IVCSDK [#ivcsdk]
-
-```typescript
-interface IVCSDK {
-  static init(config: WechatSDKConfig): void;
-  static auth(): AuthManager;
-  static vehicle(): VehicleManager;
-}
-```
-
-## AuthManager [#authmanager]
-
-```typescript
-interface AuthManager {
-  loginWithPhone(encryptedData: string, iv: string): Promise<UserSession>;
-  checkSession(): Promise<boolean>;
-}
-```
-
-## VehicleManager [#vehiclemanager]
-
-```typescript
-interface VehicleManager {
-  getList(): Promise<Vehicle[]>;
-  getDetail(vehicleId: string): Promise<VehicleDetail>;
-  bind(vin: string, ownerCode: string): Promise<void>;
-}
-```
-
-
-# WeChat SDK Overview (/en/docs/wechat-sdk)
-
-
-
-
-
-# WeChat SDK Overview [#wechat-sdk-overview]
-
-<Callout type="info">
-  Base Library Version: 2.30.0+\
-  Language: JavaScript / TypeScript\
-  npm Package: `ivc-weapp-sdk`
-</Callout>
-
-## Integration [#integration]
-
-### npm Install [#npm-install]
-
-```bash
-npm install ivc-weapp-sdk
-```
-
-### Mini Program Configuration [#mini-program-configuration]
-
-```json
-// app.json
-{
-  "plugins": {
-    "ivc-sdk": {
-      "version": "2.1.0",
-      "provider": "wx123456789"
-    }
-  }
-}
-```
-
-## Initialization [#initialization]
-
-```javascript
-import { IVCSDK } from 'ivc-weapp-sdk';
-
-// app.js
-App({
-  onLaunch() {
-    IVCSDK.init({
-      clientId: 'your_client_id',
-      env: 'staging',
-    });
-  },
-});
-```
-
-
-# WeChat SDK Quickstart (/en/docs/wechat-sdk/quickstart)
-
-
-
-# Quickstart [#quickstart]
-
-## 1. Install [#1-install]
-
-```bash
-npm install ivc-weapp-sdk
-```
-
-## 2. Initialize [#2-initialize]
-
-```javascript
-// app.js
-import { IVCSDK } from 'ivc-weapp-sdk';
-
-App({
-  onLaunch() {
-    IVCSDK.init({ clientId: 'your_client_id', env: 'staging' });
-  },
-});
-```
-
-## 3. Get Vehicle Status [#3-get-vehicle-status]
-
-```javascript
-import { IVCSDK } from 'ivc-weapp-sdk';
-
-Page({
-  async onLoad() {
-    const vehicles = await IVCSDK.vehicle().getList();
-    this.setData({ vehicles });
-  },
-});
-```
-
-
 # Functional Requirements (/en/docs/prd/functional-reqs)
 
 
@@ -2228,3 +2100,131 @@ This document defines the product requirements for the Intelligent Connected Veh
     * Anti-misoperation confirmation mechanism in place
   </Accordion>
 </Accordions>
+
+
+# WeChat SDK API Reference (/en/docs/wechat-sdk/api-reference)
+
+
+
+# API Reference [#api-reference]
+
+## IVCSDK [#ivcsdk]
+
+```typescript
+interface IVCSDK {
+  static init(config: WechatSDKConfig): void;
+  static auth(): AuthManager;
+  static vehicle(): VehicleManager;
+}
+```
+
+## AuthManager [#authmanager]
+
+```typescript
+interface AuthManager {
+  loginWithPhone(encryptedData: string, iv: string): Promise<UserSession>;
+  checkSession(): Promise<boolean>;
+}
+```
+
+## VehicleManager [#vehiclemanager]
+
+```typescript
+interface VehicleManager {
+  getList(): Promise<Vehicle[]>;
+  getDetail(vehicleId: string): Promise<VehicleDetail>;
+  bind(vin: string, ownerCode: string): Promise<void>;
+}
+```
+
+
+# WeChat SDK Overview (/en/docs/wechat-sdk)
+
+
+
+
+
+# WeChat SDK Overview [#wechat-sdk-overview]
+
+<Callout type="info">
+  Base Library Version: 2.30.0+\
+  Language: JavaScript / TypeScript\
+  npm Package: `ivc-weapp-sdk`
+</Callout>
+
+## Integration [#integration]
+
+### npm Install [#npm-install]
+
+```bash
+npm install ivc-weapp-sdk
+```
+
+### Mini Program Configuration [#mini-program-configuration]
+
+```json
+// app.json
+{
+  "plugins": {
+    "ivc-sdk": {
+      "version": "2.1.0",
+      "provider": "wx123456789"
+    }
+  }
+}
+```
+
+## Initialization [#initialization]
+
+```javascript
+import { IVCSDK } from 'ivc-weapp-sdk';
+
+// app.js
+App({
+  onLaunch() {
+    IVCSDK.init({
+      clientId: 'your_client_id',
+      env: 'staging',
+    });
+  },
+});
+```
+
+
+# WeChat SDK Quickstart (/en/docs/wechat-sdk/quickstart)
+
+
+
+# Quickstart [#quickstart]
+
+## 1. Install [#1-install]
+
+```bash
+npm install ivc-weapp-sdk
+```
+
+## 2. Initialize [#2-initialize]
+
+```javascript
+// app.js
+import { IVCSDK } from 'ivc-weapp-sdk';
+
+App({
+  onLaunch() {
+    IVCSDK.init({ clientId: 'your_client_id', env: 'staging' });
+  },
+});
+```
+
+## 3. Get Vehicle Status [#3-get-vehicle-status]
+
+```javascript
+import { IVCSDK } from 'ivc-weapp-sdk';
+
+Page({
+  async onLoad() {
+    const vehicles = await IVCSDK.vehicle().getList();
+    this.setData({ vehicles });
+  },
+});
+```
